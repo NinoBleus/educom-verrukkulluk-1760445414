@@ -47,7 +47,7 @@ Open hier toe een command prompt en type de volgende commando's:
 
 ### Windows
 ```shell
-cd \directory\van\project [ENTER\
+cd \directory\van\project [ENTER]
 ```
 
 ### Mac / Linux
