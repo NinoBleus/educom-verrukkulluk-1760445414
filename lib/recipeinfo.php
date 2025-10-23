@@ -51,7 +51,7 @@ class recipeinfo {
         return($user);
     }
 
-    private function addFavoriteRecipe($user_id, $recipe_id){
+    public function addFavoriteRecipe($user_id, $recipe_id){
 
         $sql = "insert into gerecht_info (user_id, gerecht_id, record_type) values ($user_id, $recipe_id, 'F')";
 
@@ -62,7 +62,7 @@ class recipeinfo {
 
     }
 
-    private function removeFavoriteRecipe($user_id, $recipe_id){
+    public function removeFavoriteRecipe($user_id, $recipe_id){
 
         $sql = "delete from gerecht_info where user_id = $user_id and gerecht_id = $recipe_id and record_type = 'F'";
 
