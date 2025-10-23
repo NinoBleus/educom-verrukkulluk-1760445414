@@ -1,6 +1,5 @@
 <?php
 
-require_once("lib/user.php");
 
 class recipeinfo {
 
@@ -15,56 +14,22 @@ class recipeinfo {
         $sql = "select * from gerecht_info where gerecht_id = $recipe_id AND record_type = '$record_type'";
 
         $result = mysqli_query($this->connection, $sql);
-        while ($row = mysqli_fetch_assoc($result)){
-            if ($row['record_type'] == 'W') 
-            {
-                $recipeInfo[] = [
-                    'id'=>$row['id'],
-                    'record_type'=>$row['record_type'],
-                    'recipe_id'=>$row['gerecht_id'],
-                    'create_at'=>$row['datum'],
-                    'nummeriekveld'=>$row['nummeriekveld']
-                    ];
-            } 
-            else if($row['record_type'] == 'F') 
+        while ($row = mysqli_fetch_assoc($result))
+        {
+            if ($row['record_type'] == 'F' || $row['record_type'] == 'O')
             {
                 $user = $this->selecteerUser($row['user_id']);
                 $recipeInfo[] = array_merge(
-                    [
+                [
                     'id'=>$row['id'],
                     'record_type'=>$row['record_type'],
                     'recipe_id'=>$row['gerecht_id'],
                     'user_id'=>$row['user_id'],
-                    'create_at'=>$row['datum']
-                ], $user);
-            } 
-            else if($row['record_type'] == 'O') 
-            {
-                $user = $this->selecteerUser($row['user_id']);
-                $recipeInfo[] = array_merge(
-                    [
-                    'id'=>$row['id'],
-                    'record_type'=>$row['record_type'],
-                    'recipe_id'=>$row['gerecht_id'],
-                    'user_id'=>$row['user_id'],
-                    'create_at'=>$row['datum'],
-                    'tekstveld'=>$row['tekstveld']
-                ], $user);
-                
-            } 
-            else if($row['record_type'] == 'B')
-            {
-                $recipeInfo[] = [
-                    'id'=>$row['id'],
-                    'record_type'=>$row['record_type'],
-                    'recipe_id'=>$row['gerecht_id'],
                     'create_at'=>$row['datum'],
                     'nummeriekveld'=>$row['nummeriekveld'],
                     'tekstveld'=>$row['tekstveld']
-                ];
-            } 
-            else 
-            {
+                ],  $user);
+            } else {
                 $recipeInfo[] = [
                     'id'=>$row['id'],
                     'record_type'=>$row['record_type'],
@@ -74,7 +39,8 @@ class recipeinfo {
                     'nummeriekveld'=>$row['nummeriekveld'],
                     'tekstveld'=>$row['tekstveld']
                 ]; 
-            }       
+            }
+           
         };
         return($recipeInfo); 
     }
