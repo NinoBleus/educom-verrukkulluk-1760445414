@@ -9,9 +9,13 @@ class recipe {
         $this->connection = $connection;
     }
     
-    public function selectOneRecipe($recipe_id) {
+    public function selectRecipe($recipe_id = null) {
         
-        $sql = "select * from gerecht where id = $recipe_id";
+        if ($recipe_id === null) {
+            $sql = "select * from gerecht";
+        } else {
+            $sql = "select * from gerecht where id = $recipe_id";
+        }
         
         $result = mysqli_query($this->connection, $sql);
         while ($row = mysqli_fetch_assoc($result))
@@ -19,6 +23,7 @@ class recipe {
             $user = $this->selecteerUser($row['user_id']);
             $kitchen = $this->selectKitchen($row['keuken_id']);
             $type = $this->selectType($row['type_id']);
+            $article = $this->selectIngredientsFromRecipe($row['id']);
             $recipe = array_merge([
                 'id' => $row['id'],
                 'kitchen' => $row['keuken_id'],
@@ -29,33 +34,9 @@ class recipe {
                 'long description' => $row['lange_omschrijving'],
                 'date added' => $row['datum_toegevoegd'],
                 'image' => $row['afbeelding']
-            ], $user, $kitchen, $type);           
+            ], $user, $kitchen, $type, $article);           
         };
         return($recipe); 
-    }
-    
-    public function selectMultipleRecipes($amount) {
-        $sql = "select top $amount * from gerecht";
-        
-        $result = mysqli_query($this->connection, $sql);
-        while ($row = mysqli_fetch_assoc($result))
-            {
-            $user = $this->selecteerUser($row['user_id']);
-            $kitchen = $this->selectKitchen($row['keuken_id']);
-            $type = $this->selectType($row['type_id']);
-            $recipes[] = array_merge([
-                'id' => $row['id'],
-                'kitchen' => $row['keuken_id'],
-                'type' => $row['type_id'],
-                'title' => $row['titel'],
-                'user id' => $row['user_id'],
-                'short description' => $row['korte_omschrijving'],
-                'long description' => $row['lange_omschrijving'],
-                'date added' => $row['datum_toegevoegd'],
-                'image' => $row['afbeelding']
-            ], $user, $kitchen, $type);
-        };
-        return($recipes);
     }
     
     private function selecteerUser($user_id){
@@ -70,18 +51,24 @@ class recipe {
         return($ingredients);
     }
     
-    
-    // Calculate total calories based on ingredients
-    // This calorie calculation is a temporary placeholder, change it soon to accurate values!
-    private function calcCalories($ingredients) {
+    public function calcCalories($recipe_id) {
+        $ingredients = $this->selectIngredientsFromRecipe($recipe_id);
         $totalCalories = 0;
-        foreach ($ingredients as $ingredient) {
-            $totalCalories += $ingredient['calorieen'] * $ingredient['amount'];
+        
+        foreach ($ingredients as $item) {
+            if (is_array($item)) {
+                if (isset($item['calorie_per_100']) && isset($item['verpakking_gewicht'])) {
+                    $calories = ($item['calorie_per_100'] / 100) * $item['verpakking_gewicht'];
+                    $totalCalories += $calories;
+                }
+            }
         }
+        
         return $totalCalories;
     }
     
-    private function calcPrice($recipe_id) {
+    
+    public function calcPrice($recipe_id) {
         $ingredients = $this->selectIngredientsFromRecipe($recipe_id);
         $totalPrice = 0;
         foreach ($ingredients as $ingredient) {
@@ -91,37 +78,46 @@ class recipe {
         
     }
     
-    private function calcRating($recipe_id) {
+    public function calcRating($recipe_id) {
         $recipeInfo = new recipeinfo($this->connection);
         $recipeRating = $recipeInfo->selectRecipeInfo($recipe_id, 'W');
-        $totalRating = array_sum($recipeRating['nummeriekveld'])/count($recipeRating['nummeriekveld']);
+        
+        // Extract just the rating values from the array of records
+        $ratings = array_column($recipeRating, 'nummeriekveld');
+        
+        if (empty($ratings)) {
+            return "Wie deelt door nul, is een snul!";
+        }
+        
+        $totalRating = array_sum($ratings) / count($ratings);
+        return $totalRating;
     }
     
-    private function selectSteps($recipe_id) {
+    public function selectSteps($recipe_id) {
         $recipeInfo = new recipeinfo($this->connection);
         $recipeSteps = $recipeInfo->selectRecipeInfo($recipe_id, 'B');
         return $recipeSteps;
     }
     
-    private function selectRemarks($recipe_id) {
+    public function selectRemarks($recipe_id) {
         $recipeInfo = new recipeinfo($this->connection);
         $recipeRemarks = $recipeInfo->selectRecipeInfo($recipe_id, 'O');
         return $recipeRemarks;
     }
     
-    private function selectKitchen($kitchen_id) {
+    public function selectKitchen($kitchen_id) {
         $kitchentype = new kitchentype($this->connection);
         $kitchen = $kitchentype->selecteerKitchentype($kitchen_id);
         return($kitchen);
     }
     
-    private function selectType($type_id) {
+    public function selectType($type_id) {
         $recipetype = new kitchentype($this->connection);
         $type = $recipetype->selecteerKitchentype($type_id);
         return($type);
     }
     
-    private function determineFavorite($recipe_id, $user_id) {
+    public function determineFavorite($recipe_id, $user_id) {
         $recipeInfo = new recipeinfo($this->connection);
         $favoriteInfo = $recipeInfo->selectRecipeInfo($recipe_id, 'F');
         foreach ($favoriteInfo as $favorite) {
