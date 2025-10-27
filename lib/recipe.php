@@ -18,13 +18,14 @@ class recipe {
         }
         
         $result = mysqli_query($this->connection, $sql);
+        $recipes = []; // Initialize array to hold all recipes
         while ($row = mysqli_fetch_assoc($result))
             {
             $user = $this->selecteerUser($row['user_id']);
             $kitchen = $this->selectKitchen($row['keuken_id']);
             $type = $this->selectType($row['type_id']);
             $article = $this->selectIngredientsFromRecipe($row['id']);
-            $recipe = array_merge([
+            $recipes[] = array_merge([
                 'id' => $row['id'],
                 'kitchen' => $row['keuken_id'],
                 'type' => $row['type_id'],
@@ -36,7 +37,9 @@ class recipe {
                 'image' => $row['afbeelding']
             ], $user, $kitchen, $type, $article);           
         };
-        return($recipe); 
+        
+        // If we requested a specific recipe, return just that recipe, otherwise return the array of all recipes
+        return ($recipe_id === null) ? $recipes : $recipes[0]; 
     }
     
     private function selecteerUser($user_id){
