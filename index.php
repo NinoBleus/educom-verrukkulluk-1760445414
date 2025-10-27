@@ -1,15 +1,58 @@
 <?php
+// load twig
+require_once("./vendor/autoload.php");
+// Twig koppelen:
+$loader = new \Twig\Loader\FilesystemLoader("./templates");
+/// VOOR DEVELOPMENT:
+$twig = new \Twig\Environment($loader, ["debug" => true ]);
+$twig->addExtension(new \Twig\Extension\DebugExtension());
 
+
+//Load libraries
 require_once("lib/database.php");
 require_once("lib/artikel.php");
+require_once("lib/user.php");
+require_once("lib/kitchentype.php");
+require_once("lib/ingredient.php");
+require_once("lib/recipeinfo.php");
+require_once("lib/recipe.php");
+require_once("lib/boodschappenlijst.php");
 
-/// INIT
+/// INIT Libraries
 $db = new database();
 $art = new artikel($db->getConnection());
+$user = new user($db->getConnection());
+$ingredient = new ingredient($db->getConnection());
+$recipeInfo = new recipeinfo($db->getConnection());
+$kitchentype = new kitchentype($db->getConnection());
+$recipe = new recipe($db->getConnection());
+$boodschappenlijst = new boodschappenlijst($db->getConnection());
+
+/// Get info from URL
+$recipeId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$action = isset($_GET['action']) ? $_GET['action'] : 'homepage';
+
+switch($action) {
+    
+    case "homepage": {
+        $data = $recipe->selectRecipe();
+        $template = 'homepage.html.twig';
+        $title = "homepage";
+        break;
+    }
+    
+    case "detail": {
+        $data = $gerecht->selecteerGerecht($gerecht_id);
+        $template = 'detail.html.twig';
+        $title = "detail pagina";
+        break;
+    }
+}
 
 
-/// VERWERK 
-$data = $art->selecteerArtikel(8);
+/// Load template
+$template = $twig->load($template);
 
-/// RETURN
-var_dump($data);
+/// Render template
+echo $template->render(["title" => $title, "data" => $data]);
+
