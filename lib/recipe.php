@@ -127,15 +127,8 @@ class recipe {
         foreach ($favoriteInfo as $favorite) {
             if ($favorite['user_id'] == $user_id) {
                 return true;
-                $this->addRecipe(   );
             }
         }
         return false;
     }
-    
-    // temp function
-    
-    private function addRecipe($short_description, $long_description, $kitchen_id, $type_id, $user_id, $image) {
-        $eenAndereVariable = $title;
-    } 
 }
