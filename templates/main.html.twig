@@ -1,7 +1,7 @@
 <html lang="nl">
 <head>
 
-    <title>het is verrukkuluk! :: {{ TITEL }} </title>
+    <title>Verrukkuluk {{ TITEL }} </title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 
     <link rel="stylesheet" type="text/css" href="assets/bootstrap/css/bootstrap.css" />
@@ -13,29 +13,109 @@
     <script type="text/javascript" language="javascript" src="assets/jquery/jquery-3.5.1.js"></script>
     <script type="text/javascript" language="javascript" src="assets/bootstrap/js/bootstrap.js"></script>
 
-</html>
+</head>
 <body>
 <div class="container-fluid">
 
     <div class="row">
         <div class="col-md-12">
         {% block header %}
-            
-        {% endblock %}   
+        <div class="background-image">
+            <img src="assets/img/logo-v2.png" alt="Logo" class="header-logo"/>
+
+            <!-- Search bar -->
+            <form class="search-form" action="/search" method="get" role="search" aria-label="Zoek">
+                <div class="search-pill">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                    <input id="q" name="q" type="search" placeholder="Zoek recepten..." />
+                </div>
+            </form>
+
+            <!-- Hamburger button -->
+            <button id="hamburgerBtn" class="hamburger" aria-label="Open menu" aria-expanded="false">
+                <span></span>
+                <span></span>       
+                <span></span>
+            </button>
+
+            <!-- Sliding menu (hidden by default) -->
+            <nav id="mobileMenu" class="mobile-menu" aria-hidden="true">
+                <ul>
+                    <li><a href="/homepage"><img src="assets/img/logo-v2.png" alt="Logo" class="header-logo"/></a></li>
+                    <li><a href="#">Mijn Favorieten</a></li>
+                    <li><a href="#">Mijn Boodschappenlijst</a></li>
+                </ul>
+            </nav>
+        
+        </div>
+        {% endblock %}
         </div>
     </div>
 
     <div class="row">
-        <div class="col-md-3">
-            <h2>Agenda</h2>
-            <i class="fa fa-calendar"></i> FontAwesome <a href="https://fontawesome.com/icons?d=gallery&m=free">Documentation</a><br>
-            <i class="fa fa-file-pdf"></i><a href="https://www.layoutit.com/build">Layout-it</a>
+        <div class="col-md-3 sidebar-column">
+            <aside class="agenda-bar" aria-label="Agenda">
+                <div class="agenda-header">
+                    <img src="assets/img/verrukkulluk-agenda.png" alt="Agenda" />
+                </div>
+                <div class="agenda-content">
+                    <ul class="agenda-list">
+                        <li class="agenda-item">
+                            <div class="agenda-item-date">31</div>
+                            <div class="agenda-item-body">
+                                <strong>Vegetarisch koken</strong>
+                                <p>Een workshop vegetarisch koken, onder leiding van Trientje Hupsakee</p>
+                            </div>
+                        </li>
+                        <li class="agenda-item">
+                            <div class="agenda-item-date">31</div>
+                            <div class="agenda-item-body">
+                                <strong>Vegetarisch koken</strong>
+                                <p>Een workshop vegetarisch koken, onder leiding van Trientje Hupsakee</p>
+                            </div>
+                        </li>
+                        <li class="agenda-item">
+                            <div class="agenda-item-date">31</div>
+                            <div class="agenda-item-body">
+                                <strong>Vegetarisch koken</strong>
+                                <p>Een workshop vegetarisch koken, onder leiding van Trientje Hupsakee</p>
+                            </div>
+                        </li>
+                        <li class="agenda-item">
+                            <div class="agenda-item-date">31</div>
+                            <div class="agenda-item-body">
+                                <strong>Vegetarisch koken</strong>
+                                <p>Een workshop vegetarisch koken, onder leiding van Trientje Hupsakee</p>
+                            </div>
+                        </li>
+                        <li class="agenda-item">
+                            <div class="agenda-item-date">31</div>
+                            <div class="agenda-item-body">
+                                <strong>Vegetarisch koken</strong>
+                                <p>Een workshop vegetarisch koken, onder leiding van Trientje Hupsakee</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
 
+            <div class="login-panel" aria-label="Login formulier">
+                <h3>Login</h3>
+                <form action="/login" method="post" class="login-form" novalidate>
+                    <label for="login-email">Email</label>
+                    <input id="login-email" name="email" type="email" placeholder="" required />
+
+                    <label for="login-password">Wachtwoord</label>
+                    <input id="login-password" name="password" type="password" placeholder="" required />
+
+                    <button type="submit" class="login-btn">Login</button>
+                </form>
+            </div>
 
         </div>
         <div class="col-md-9">
-            <h2>Content</h2>
             {%  block content %}
+
             {%  endblock %}
         </div>
     </div>
@@ -43,7 +123,22 @@
 
     <div class="row">
         <div class="col-md-12">
-            <h1>Footer</h1>
+            {% block footer %}
+            <footer class="site-footer" aria-label="Contact">
+                <div class="footer-contact">
+                    <img src="assets/img/verrukkulluk-pay-off.png" alt="Logo illustratie" class="footer-contact-image" />
+                    <div class="footer-contact-info">
+                        <p>
+                            <img src="assets/img/verrukkulluk-contact.png" alt="Contact illustratie" class="footer-contact-image" /><br>
+                            Verrukkulluk.nl<br />
+                            Poststraat 2b<br />
+                            Sittard<br />
+                            <a href="mailto:info@verrukkulluk.nl">info@verrukkulluk.nl</a>
+                        </p>
+                    </div>
+                </div>
+            </footer>
+            {% endblock %}
         </div>
     </div>
 
@@ -51,3 +146,17 @@
 </div>
 
 </body>
+<script>
+// Toggle mobile menu
+document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('hamburgerBtn');
+    var menu = document.getElementById('mobileMenu');
+    if(!btn || !menu) return;
+    btn.addEventListener('click', function(){
+        var opened = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', opened ? 'true' : 'false');
+        menu.setAttribute('aria-hidden', opened ? 'false' : 'true');
+    });
+});
+</script>
+</html>
