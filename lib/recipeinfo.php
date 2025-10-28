@@ -12,7 +12,8 @@ class recipeinfo {
     public function selectRecipeInfo($recipe_id, $record_type) {
         
         $sql = "select * from gerecht_info where gerecht_id = $recipe_id AND record_type = '$record_type'";
-        
+        $recipeInfo = [];
+
         $result = mysqli_query($this->connection, $sql);
         while ($row = mysqli_fetch_assoc($result))
             {
