@@ -1,48 +1,113 @@
 {# Opnemen van de "Main" file #}
 {% extends "main.html.twig" %}
 
-{% block header %}
-<img src="assets/img/logo-v2.png"/>
-{% endblock %}
 
-
-{# nu de block content op in de main pagina vullen #}
 {% block content %}
-    {# Dit is commentaar #}
+<div class="recipes-section">
+    {% if recipes is defined and recipes|length > 0 %}
+        <div class="recipes-grid">
+            {% for recipe in recipes %}
+                {% set imageFile = recipe.image ?? '' %}
+                {% set resolvedImage = imageFile %}
+                {% if resolvedImage is empty %}
+                    {% set resolvedImage = 'assets/img/logo-v2.png' %}
+                {% elseif resolvedImage starts with 'http' %}
+                    {# absolute path provided #}
+                {% elseif resolvedImage starts with 'assets/' %}
+                    {# already relative to assets #}
+                {% else %}
+                    {% set resolvedImage = 'assets/img/' ~ resolvedImage %}
+                {% endif %}
 
-    {# Print #}
-    <h1>Heading #1</h1>
-    <h2>Heading #2</h2>
-    <h3>Heading #3 t/m 5</h3>
+                <article class="recipe-card">
+                    <div class="recipe-card__image">
+                        <img src="{{ resolvedImage }}" alt="{{ recipe.display_title|default('Recept') }}">
+                    </div>
+                    <div class="recipe-card__body">
+                        <div class="recipe-card__header">
+                            <h3 class="recipe-card__title">
+                                {{ recipe.display_title|default('Recept zonder titel') }}
+                            </h3>
+                            {% set ratingValue = recipe.rating is defined ? (recipe.rating + 0) : 0 %}
+                            <div class="recipe-card__rating" aria-label="{{ ratingValue ? 'Beoordeling ' ~ ratingValue ~ ' van 5' : 'Nog geen beoordeling' }}">
+                                {% for star in 1..5 %}
+                                    {% set filled = ratingValue >= star %}
+                                    <i class="fa fa-star recipe-card__star {{ filled ? 'recipe-card__star--filled' : 'recipe-card__star--empty' }}" aria-hidden="true"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% set description = recipe.display_description|default('') %}
+                        <p class="recipe-card__description">
+                            {% if description|length > 280 %}
+                                {{ description|slice(0, 280) ~ '...' }}
+                            {% else %}
+                                {{ description }}
+                            {% endif %}
+                        </p>
+                        <div class="recipe-card__footer">
+                            <a class="recipe-card__cta" href="?action=detail&id={{ recipe.id|e }}">Smullen!</a>
+                            <div class="recipe-card__meta">
+                                <span class="recipe-card__meta-item" title="Aantal personen">
+                                    <i class="fa fa-users" aria-hidden="true"></i>
+                                    {{ 4 }}
+                                </span>
+                                <span class="recipe-card__meta-item" title="Geschatte prijs">
+                                    <i class="fa fa-eur" aria-hidden="true"></i>
+                                    {% if recipe.price_total is not null %}
+                                        &euro;{{ (recipe.price_total / 100 )|number_format(2, ',', '.') }}
+                                    {% else %}
+                                        n.t.b.
+                                    {% endif %}
+                                </span>
+                                <span class="recipe-card__meta-item" title="Calorieen">
+                                    <i class="fa fa-fire" aria-hidden="true"></i>
+                                    {% if recipe.calories_total is not null %}
+                                        {{ recipe.calories_total / 4}} kcal
+                                    {% else %}
+                                        n.t.b.
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="recipes-empty">
+            Er zijn nog geen recepten beschikbaar.
+        </p>
+    {% endif %}
 
-    <h4>Dit is de template {{  title }}</h4>
-
-{# Loop #}
-    <ul>
-    {% for record in data %}
-        <li>
-            <img src="{{ record.foto }}" style="width: 100px; heigfht: 100px;">
-
-            {{ record.title }}
-            {# sub-loop #}
-            <ul>
-                {% for ingr in record.ingredienten %}
-                    <li>
-                        <span {% if ingr.id < 2 %}style='color: #F00'{% endif %}>{{  ingr.naam }}</span>
-
-                        {# if #}
-                        {%  if ingr.id == 3 %}
-                            <strong>Dit is ID 3!</strong>
-                        {%  endif  %}
+    {% if hasPagination %}
+        <nav class="recipes-pagination" aria-label="Paginering recepten">
+            <ul class="recipes-pagination__list">
+                <li class="recipes-pagination__item">
+                    {% if currentPage > 1 %}
+                        <a class="recipes-pagination__link" href="?action=homepage&page={{ currentPage - 1 }}" rel="prev">Vorige</a>
+                    {% else %}
+                        <span class="recipes-pagination__link is-disabled" aria-disabled="true">Vorige</span>
+                    {% endif %}
+                </li>
+                {% for page in 1..totalPages %}
+                    <li class="recipes-pagination__item">
+                        {% if page == currentPage %}
+                            <span class="recipes-pagination__link is-active" aria-current="page">{{ page }}</span>
+                        {% else %}
+                            <a class="recipes-pagination__link" href="?action=homepage&page={{ page }}">{{ page }}</a>
+                        {% endif %}
                     </li>
                 {% endfor %}
+                <li class="recipes-pagination__item">
+                    {% if currentPage < totalPages %}
+                        <a class="recipes-pagination__link" href="?action=homepage&page={{ currentPage + 1 }}" rel="next">Volgende</a>
+                    {% else %}
+                        <span class="recipes-pagination__link is-disabled" aria-disabled="true">Volgende</span>
+                    {% endif %}
+                </li>
             </ul>
-        </li>
-    {% endfor %}
-    <ul>
-     {# Dump #}
-       <pre>
-        {{ dump(data) }}
-       </pre>
-
+        </nav>
+    {% endif %}
+</div>
 {% endblock %}
+
