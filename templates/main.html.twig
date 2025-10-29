@@ -1,7 +1,7 @@
 <html lang="nl">
 <head>
 
-    <title>Verrukkuluk {{ TITEL }} </title>
+    <title>Verrukkuluk</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 
     <link rel="stylesheet" type="text/css" href="assets/bootstrap/css/bootstrap.css" />
@@ -41,9 +41,9 @@
             <!-- Sliding menu (hidden by default) -->
             <nav id="mobileMenu" class="mobile-menu" aria-hidden="true">
                 <ul>
-                    <li><a href="/homepage"><img src="assets/img/logo-v2.png" alt="Logo" class="header-logo"/></a></li>
-                    <li><a href="#">Mijn Favorieten</a></li>
-                    <li><a href="#">Mijn Boodschappenlijst</a></li>
+                    <li><a href="?action=homepage"><img src="assets/img/logo-v2.png" alt="Logo" class="header-logo"/></a></li>
+                    <li><a href="?action=favorites">Mijn Favorieten</a></li>
+                    <li><a href="?action=shoppinglist">Mijn Boodschappenlijst</a></li>
                 </ul>
             </nav>
         
@@ -147,7 +147,7 @@
 
 </body>
 <script>
-// Toggle mobile menu
+
 document.addEventListener('DOMContentLoaded', function(){
     var btn = document.getElementById('hamburgerBtn');
     var menu = document.getElementById('mobileMenu');
@@ -159,4 +159,5 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 });
 </script>
+{% block javascripts %}{% endblock %}
 </html>

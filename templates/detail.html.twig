@@ -1,5 +1,247 @@
 {% extends "main.html.twig" %}
 
-{% block header %}
-<h1>Hallo Bram</h1>
+{% block content %}
+
+{% if recipeDetail %}
+<article class="recipe-detail-card">
+    {% set servings = recipeDetail.servings_total|default(4) %}
+    {% set caloriesDisplay = recipeDetail.calories_per_serving is not null ? recipeDetail.calories_per_serving : recipeDetail.calories_total %}
+    <div class="recipe-detail-card__image">
+        <img src="{{ recipeDetail.image_resolved }}" alt="{{ recipeDetail.display_title|default('Recept') }}">
+    </div>
+    <div class="recipe-detail-card__body">
+        <header class="recipe-detail-card__header">
+            <div class="recipe-detail-card__top-meta">
+                <div class="recipe-detail-card__stats">
+                    <span class="recipe-detail-card__stat" title="Aantal personen">
+                        <i class="fa fa-users" aria-hidden="true"></i>
+                        {{ servings }}
+                    </span>
+                    <span class="recipe-detail-card__stat" title="Geschatte prijs">
+                        <i class="fa fa-eur" aria-hidden="true"></i>
+                        {% if recipeDetail.price_total is not null %}
+                            &euro;{{ (recipeDetail.price_total / 100)|number_format(2, ',', '.') }}
+                        {% else %}
+                            n.t.b.
+                        {% endif %}
+                    </span>
+                    <span class="recipe-detail-card__stat" title="Calorieen">
+                        <i class="fa fa-fire" aria-hidden="true"></i>
+                        {% if caloriesDisplay is not null %}
+                            {{ caloriesDisplay }} kcal
+                        {% else %}
+                            n.t.b.
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="recipe-detail-card__rating" aria-label="{{ recipeDetail.rating_value ? 'Beoordeling ' ~ recipeDetail.rating_value ~ ' van 5' : 'Nog geen beoordeling' }}">
+                    {% for star in 1..5 %}
+                        {% set filled = recipeDetail.rating_value is not null and recipeDetail.rating_value >= star %}
+                        <i class="fa fa-star recipe-card__star {{ filled ? 'recipe-card__star--filled' : 'recipe-card__star--empty' }}" aria-hidden="true"></i>
+                    {% endfor %}
+                </div>
+            </div>
+            <h2 class="recipe-detail-card__title">{{ recipeDetail.display_title|default('Recept zonder titel') }}</h2>
+            <dl class="recipe-detail-card__tags">
+                <div class="recipe-detail-card__tag">
+                    <dt>Keuken</dt>
+                    <dd>{{ recipeDetail.kitchen_label|default('Onbekend') }}</dd>
+                </div>
+                <div class="recipe-detail-card__tag">
+                    <dt>Type</dt>
+                    <dd>{{ recipeDetail.type_label|default('Onbekend') }}</dd>
+                </div>
+            </dl>
+        </header>
+        <div class="recipe-detail-card__description">
+            {% set longDescription = recipeDetail.display_long_description|default(recipeDetail.display_short_description) %}
+            {% if longDescription %}
+                {% set normalized = longDescription|replace({'\r\n': '\n'}) %}
+                {% set paragraphs = normalized|split('\n\n') %}
+                {% for paragraph in paragraphs %}
+                    {% set trimmedParagraph = paragraph|trim %}
+                    {% if trimmedParagraph != '' %}
+                        <p>{{ trimmedParagraph }}</p>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p>Er is nog geen beschrijving beschikbaar voor dit recept.</p>
+            {% endif %}
+        </div>
+        {% if recipeDetail.rating_notice %}
+            <p class="recipe-detail-card__notice">{{ recipeDetail.rating_notice }}</p>
+        {% endif %}
+        <footer class="recipe-detail-card__footer">
+            <a class="recipe-card__cta recipe-detail-card__cta" href="?action=shoppinglist&recipe_id={{ recipeDetail.id|e }}">Op lijst</a>
+            <button class="recipe-detail-card__favorite js-recipe-favorite" type="button" aria-label="Like dit recept" aria-pressed="false">
+                <i class="far fa-heart recipe-detail-card__favorite-icon" aria-hidden="true"></i>
+            </button>
+        </footer>
+    </div>
+</article>
+{% set tabsId = recipeDetail.id|default('detail') %}
+<section class="recipe-detail-tabs js-recipe-tabs" aria-label="Receptinformatie">
+    <div class="recipe-detail-tabs__nav" role="tablist">
+        <button class="recipe-detail-tabs__tab is-active" type="button" role="tab" aria-selected="true" id="recipe-tab-btn-ingredients-{{ tabsId }}" aria-controls="recipe-tab-ingredients-{{ tabsId }}">Ingredienten</button>
+        <button class="recipe-detail-tabs__tab" type="button" role="tab" aria-selected="false" id="recipe-tab-btn-steps-{{ tabsId }}" aria-controls="recipe-tab-steps-{{ tabsId }}">Bereidingswijze</button>
+        <button class="recipe-detail-tabs__tab" type="button" role="tab" aria-selected="false" id="recipe-tab-btn-comments-{{ tabsId }}" aria-controls="recipe-tab-comments-{{ tabsId }}">Opmerkingen</button>
+    </div>
+    <div class="recipe-detail-tabs__panels">
+        <div class="recipe-detail-tabs__panel is-active" role="tabpanel" id="recipe-tab-ingredients-{{ tabsId }}" aria-labelledby="recipe-tab-btn-ingredients-{{ tabsId }}">
+            <ul class="recipe-ingredients">
+                {% for ingredient in recipeIngredients %}
+                    <li class="recipe-ingredients__item">
+                        {% if ingredient.image %}
+                            <div class="recipe-ingredients__media">
+                                <img src="{{ ingredient.image }}" alt="{{ ingredient.name|default('Ingredient') }}">
+                            </div>
+                        {% endif %}
+                        <div class="recipe-ingredients__content">
+                            <h3 class="recipe-ingredients__title">{{ ingredient.name|default('Onbekend ingredient') }}</h3>
+                            {% if ingredient.description %}
+                                <p class="recipe-ingredients__description">{{ ingredient.description }}</p>
+                            {% endif %}
+                            <dl class="recipe-ingredients__meta">
+                                {% if ingredient.amount_display %}
+                                    <div>
+                                        <dt>Hoeveelheid</dt>
+                                        <dd>{{ ingredient.amount_display }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if ingredient.article.brand %}
+                                    <div>
+                                        <dt>Merk</dt>
+                                        <dd>{{ ingredient.article.brand }}</dd>
+                                    </div>
+                                {% endif %}
+                                {% if ingredient.article.category %}
+                                    <div>
+                                        <dt>Categorie</dt>
+                                        <dd>{{ ingredient.article.category }}</dd>
+                                    </div>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="recipe-ingredients__empty">Er zijn nog geen ingredienten gekoppeld aan dit recept.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="recipe-detail-tabs__panel" role="tabpanel" id="recipe-tab-steps-{{ tabsId }}" aria-labelledby="recipe-tab-btn-steps-{{ tabsId }}" hidden>
+            <ol class="recipe-steps">
+                {% for step in recipeSteps %}
+                    <li class="recipe-steps__item">
+                        <div class="recipe-steps__number">{{ step.order ?? loop.index }}</div>
+                        <div class="recipe-steps__body">
+                            <p>{{ step.body|default('Deze stap heeft nog geen beschrijving.') }}</p>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="recipe-steps__empty">De bereidingswijze is nog niet beschikbaar voor dit recept.</li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="recipe-detail-tabs__panel" role="tabpanel" id="recipe-tab-comments-{{ tabsId }}" aria-labelledby="recipe-tab-btn-comments-{{ tabsId }}" hidden>
+            <ul class="recipe-comments">
+                {% for comment in recipeComments %}
+                    <li class="recipe-comments__item">
+                        <div class="recipe-comments__avatar" aria-hidden="true">{{ comment.author|default('')|slice(0, 1)|upper }}</div>
+                        <div class="recipe-comments__content">
+                            <div class="recipe-comments__header">
+                                <span class="recipe-comments__author">{{ comment.author }}</span>
+                                {% if comment.created_at %}
+                                    <time class="recipe-comments__date" datetime="{{ comment.created_at }}">{{ comment.created_at|date('d-m-Y H:i') }}</time>
+                                {% endif %}
+                            </div>
+                            <p class="recipe-comments__message">{{ comment.message|default('Geen opmerking beschikbaar.') }}</p>
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="recipe-comments__empty">Er zijn nog geen opmerkingen geplaatst.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</section>
+{% else %}
+    <p class="recipe-detail-card__empty">Dit recept kon niet worden gevonden.</p>
+{% endif %}
+
 {% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var favoriteBtn = document.querySelector('.js-recipe-favorite');
+        if (favoriteBtn) {
+            var favoriteIcon = favoriteBtn.querySelector('.recipe-detail-card__favorite-icon');
+
+            function updateFavoriteState(isActive) {
+                favoriteBtn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                favoriteBtn.setAttribute(
+                    'aria-label',
+                    isActive ? 'Verwijder recept uit favorieten' : 'Like dit recept'
+                );
+                if (!favoriteIcon) {
+                    return;
+                }
+                favoriteIcon.classList.toggle('fas', isActive);
+                favoriteIcon.classList.toggle('far', !isActive);
+            }
+
+            updateFavoriteState(
+                favoriteBtn.classList.contains('is-active') ||
+                favoriteBtn.getAttribute('aria-pressed') === 'true'
+            );
+
+            favoriteBtn.addEventListener('click', function () {
+                var isActive = favoriteBtn.classList.toggle('is-active');
+                updateFavoriteState(isActive);
+            });
+        }
+
+        document.querySelectorAll('.js-recipe-tabs').forEach(function (tabComponent) {
+            var tabs = tabComponent.querySelectorAll('.recipe-detail-tabs__tab');
+            var panels = tabComponent.querySelectorAll('.recipe-detail-tabs__panel');
+
+            function activateTab(targetTab) {
+                tabs.forEach(function (tab) {
+                    var isActive = tab === targetTab;
+                    tab.classList.toggle('is-active', isActive);
+                    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                    var controls = tab.getAttribute('aria-controls');
+                    if (!controls) {
+                        return;
+                    }
+                    var panel = tabComponent.querySelector('#' + controls);
+                    if (panel) {
+                        panel.classList.toggle('is-active', isActive);
+                        if (isActive) {
+                            panel.removeAttribute('hidden');
+                        } else {
+                            panel.setAttribute('hidden', 'hidden');
+                        }
+                    }
+                });
+            }
+
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    activateTab(tab);
+                });
+            });
+
+            var initialActive = tabComponent.querySelector('.recipe-detail-tabs__tab.is-active');
+            if (initialActive) {
+                activateTab(initialActive);
+            } else if (tabs.length > 0) {
+                activateTab(tabs[0]);
+            }
+        });
+    });
+    </script>
+{% endblock %}
+
+

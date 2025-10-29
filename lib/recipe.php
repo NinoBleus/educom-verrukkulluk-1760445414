@@ -18,15 +18,18 @@ class recipe {
         }
         
         $result = mysqli_query($this->connection, $sql);
-        $recipes = []; // Initialize array to hold all recipes
+        $recipes = []; 
         while ($row = mysqli_fetch_assoc($result))
             {
             $user = $this->selecteerUser($row['user_id']);
             $kitchen = $this->selectKitchen($row['keuken_id']);
             $type = $this->selectType($row['type_id']);
             $article = $this->selectIngredientsFromRecipe($row['id']);
-            $recipes[] = array_merge([
-                'id' => $row['id'],
+            $steps = $this->selectSteps($row['id']);
+            $recipeRemarks = $this->selectRemarks($row['id']);
+
+            $recipeDetails = array_merge([
+                'recipe_id' => $row['id'],
                 'kitchen' => $row['keuken_id'],
                 'type' => $row['type_id'],
                 'title' => $row['titel'],
@@ -35,10 +38,14 @@ class recipe {
                 'long description' => $row['lange_omschrijving'],
                 'date added' => $row['datum_toegevoegd'],
                 'image' => $row['afbeelding']
-            ], $user, $kitchen, $type, $article);           
+            ], $user, $kitchen, $type, $article, $steps, $recipeRemarks);
+
+            $recipeDetails['id'] = $row['id'];
+            $recipeDetails['recipe_id'] = $row['id'];
+
+            $recipes[] = $recipeDetails;
         };
         
-        // If we requested a specific recipe, return just that recipe, otherwise return the array of all recipes
         return ($recipe_id === null) ? $recipes : $recipes[0]; 
     }
     
@@ -85,7 +92,6 @@ class recipe {
         $recipeInfo = new recipeinfo($this->connection);
         $recipeRating = $recipeInfo->selectRecipeInfo($recipe_id, 'W');
         
-        // Extract just the rating values from the array of records
         $ratings = array_column($recipeRating, 'nummeriekveld');
         
         if (empty($ratings)) {

@@ -37,6 +37,8 @@
                             </div>
                         </div>
                         {% set description = recipe.display_description|default('') %}
+                        {% set servings = recipe.servings_total|default(4) %}
+                        {% set caloriesPerServing = recipe.calories_per_serving is not null ? recipe.calories_per_serving : recipe.calories_total %}
                         <p class="recipe-card__description">
                             {% if description|length > 280 %}
                                 {{ description|slice(0, 280) ~ '...' }}
@@ -49,7 +51,7 @@
                             <div class="recipe-card__meta">
                                 <span class="recipe-card__meta-item" title="Aantal personen">
                                     <i class="fa fa-users" aria-hidden="true"></i>
-                                    {{ 4 }}
+                                    {{ servings }}
                                 </span>
                                 <span class="recipe-card__meta-item" title="Geschatte prijs">
                                     <i class="fa fa-eur" aria-hidden="true"></i>
@@ -61,8 +63,8 @@
                                 </span>
                                 <span class="recipe-card__meta-item" title="Calorieen">
                                     <i class="fa fa-fire" aria-hidden="true"></i>
-                                    {% if recipe.calories_total is not null %}
-                                        {{ recipe.calories_total / 4}} kcal
+                                    {% if caloriesPerServing is not null %}
+                                        {{ caloriesPerServing }} kcal
                                     {% else %}
                                         n.t.b.
                                     {% endif %}
