@@ -1,0 +1,88 @@
+{% extends "main.html.twig" %}
+
+{% block content %}
+<section class="shopping-list" aria-labelledby="shopping-list-title">
+    <header class="shopping-list__header">
+        <div class="shopping-list__heading">
+            <h1 id="shopping-list-title" class="shopping-list__title">Boodschappen</h1>
+            {% if shoppingCount is defined and shoppingCount > 0 %}
+                <span class="shopping-list__meta">{{ shoppingCount }} {{ shoppingCount == 1 ? 'artikel' : 'artikelen' }}</span>
+            {% endif %}
+        </div>
+        <div class="shopping-list__notices">
+            {% if addedRecipeName %}
+                <p class="shopping-list__notice is-success">
+                    {{ addedRecipeName }} is toegevoegd aan je boodschappenlijst.
+                </p>
+            {% elseif addedRecipeId %}
+                <p class="shopping-list__notice is-success">
+                    Dit recept is toegevoegd aan je boodschappenlijst.
+                </p>
+            {% endif %}
+            {% if removedItemId %}
+                <p class="shopping-list__notice is-warning">
+                    Het artikel is verwijderd uit je boodschappenlijst.
+                </p>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if hasShoppingItems %}
+        <ul class="shopping-list__items">
+            {% for item in shoppingItems %}
+                <li class="shopping-list__item">
+                    <div class="shopping-list__visual">
+                        <img src="{{ item.image }}" alt="{{ item.name }}" loading="lazy">
+                    </div>
+                    <div class="shopping-list__body">
+                        <h2 class="shopping-list__name">{{ item.name }}</h2>
+                        <p class="shopping-list__description">
+                            {{ item.description ? item.description : 'Voor dit product is nog geen omschrijving beschikbaar.' }}
+                        </p>
+                        {% if item.packaging %}
+                            <p class="shopping-list__packaging">{{ item.packaging }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="shopping-list__quantity">
+                        <label for="shopping-item-{{ loop.index }}" class="shopping-list__quantity-label">Aantal</label>
+                        <input id="shopping-item-{{ loop.index }}" type="number" min="1" value="{{ item.amount }}" readonly>
+                    </div>
+                    <div class="shopping-list__price">
+                        {% if item.line_total_cents > 0 %}
+                            <span class="shopping-list__price-amount">&euro;&nbsp;{{ item.line_total_display }}</span>
+                            {% if item.amount > 1 and item.unit_price_cents > 0 %}
+                                <span class="shopping-list__price-note">@ &euro;&nbsp;{{ item.unit_price_display }} p/st</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="shopping-list__price-amount shopping-list__price-amount--unknown">n.t.b.</span>
+                        {% endif %}
+                    </div>
+                    <div class="shopping-list__icons">
+                        <i class="fa fa-check shopping-list__icon shopping-list__icon--confirm"></i>
+                        <form method="post" action="?action=shoppinglist" class="shopping-list__remove-form">
+                            <input type="hidden" name="remove_article_id" value="{{ item.article_id }}">
+                            <button type="submit" class="shopping-list__icon-button" aria-label="Verwijder {{ item.name }}">
+                                <i class="fa fa-trash shopping-list__icon shopping-list__icon--remove"></i>
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        <footer class="shopping-list__footer">
+            <span class="shopping-list__footer-label">Totaal</span>
+            <span class="shopping-list__footer-price">
+                {% if shoppingTotalCents > 0 %}
+                    &euro;&nbsp;{{ shoppingTotalDisplay }}
+                {% else %}
+                    n.t.b.
+                {% endif %}
+            </span>
+        </footer>
+    {% else %}
+        <p class="shopping-list__empty">
+            Je boodschappenlijst is nog leeg. Voeg producten toe via een recept.
+        </p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -72,7 +72,10 @@
             <p class="recipe-detail-card__notice">{{ recipeDetail.rating_notice }}</p>
         {% endif %}
         <footer class="recipe-detail-card__footer">
-            <a class="recipe-card__cta recipe-detail-card__cta" href="?action=shoppinglist&recipe_id={{ recipeDetail.id|e }}">Op lijst</a>
+            <form class="recipe-detail-card__cta-form" method="post" action="?action=shoppinglist">
+                <input type="hidden" name="recipe_id" value="{{ recipeDetail.id|e }}">
+                <button class="recipe-card__cta recipe-detail-card__cta" type="submit">Op lijst</button>
+            </form>
             <button class="recipe-detail-card__favorite js-recipe-favorite" type="button" aria-label="Like dit recept" aria-pressed="false">
                 <i class="far fa-heart recipe-detail-card__favorite-icon" aria-hidden="true"></i>
             </button>
@@ -243,5 +246,4 @@
     });
     </script>
 {% endblock %}
-
 

@@ -12,6 +12,7 @@ class boodschappenlijst {
 
     //Public functions
     public function selecteerBoodschappenLijst($user_id) {
+        $user_id = (int) $user_id;
         $sql = "select * from boodschappenlijst where user_id = $user_id";
         
         $result = mysqli_query($this->connection, $sql);
@@ -35,20 +36,45 @@ class boodschappenlijst {
         return($boodschappenlijst);
     }
     
-public function boodschappenToevoegen($gerecht_id, $user_id) {
-    $ingredienten = new ingredient($this->connection);
-    $ingredientenLijst = $ingredienten->selecteerIngredientsFromRecipe($gerecht_id);
-    foreach($ingredientenLijst as $ingredient) {
-        if(!$this->ArtikelOpLijst($ingredient['artikel_id'], $user_id)) {
-            $this->voegArtikelToe($ingredient['artikel_id'], $user_id, $amount = 1);
-        }
-        else {
-            $this->updateArtikel($ingredient['artikel_id'], $user_id);
+    public function boodschappenToevoegen($gerecht_id, $user_id) {
+        $gerecht_id = (int) $gerecht_id;
+        $user_id = (int) $user_id;
+
+        $ingredienten = new ingredient($this->connection);
+        $ingredientenLijst = $ingredienten->selecteerIngredientsFromRecipe($gerecht_id);
+        foreach($ingredientenLijst as $ingredient) {
+            if (!isset($ingredient['artikel_id'])) {
+                continue;
+            }
+
+            $artikelId = (int) $ingredient['artikel_id'];
+            $requiredAmount = $this->bepaalIngredientHoeveelheid($ingredient);
+
+            if (!$this->ArtikelOpLijst($artikelId, $user_id)) {
+                $this->voegArtikelToe($artikelId, $user_id, $requiredAmount);
+            } else {
+                $this->updateArtikel($artikelId, $user_id, $requiredAmount);
+            }
         }
     }
-}
+
+    public function verwijderArtikel($artikelId, $user_id) {
+        $artikelId = (int) $artikelId;
+        $user_id = (int) $user_id;
+
+        if ($artikelId <= 0) {
+            return false;
+        }
+
+        $sql = "delete from boodschappenlijst where article_id = $artikelId and user_id = $user_id";
+        $result = mysqli_query($this->connection, $sql);
+        return $result !== false;
+    }
     
     private function ArtikelOpLijst($artikel_id, $user_id) {
+        $artikel_id = (int) $artikel_id;
+        $user_id = (int) $user_id;
+
         $boodschappen = $this->selecteerBoodschappenLijst($user_id);
         if (!is_array($boodschappen) || empty($boodschappen)) {
             return false;
@@ -64,12 +90,20 @@ public function boodschappenToevoegen($gerecht_id, $user_id) {
 
     //Private functions
     private function voegArtikelToe($artikel_id, $user_id, $amount) {
+        $artikel_id = (int) $artikel_id;
+        $user_id = (int) $user_id;
+        $amount = (int) max(1, $amount);
+
         $sql = "insert into boodschappenlijst (user_id, article_id, amount) values ($user_id, $artikel_id, $amount)";
         mysqli_query($this->connection, $sql);
     }
     
-    private function updateArtikel($artikel_id, $user_id) {
-        $sql = "update boodschappenlijst set amount = amount + 1 where article_id = $artikel_id and user_id = $user_id";
+    private function updateArtikel($artikel_id, $user_id, $amount) {
+        $artikel_id = (int) $artikel_id;
+        $user_id = (int) $user_id;
+        $amount = (int) max(1, $amount);
+
+        $sql = "update boodschappenlijst set amount = amount + $amount where article_id = $artikel_id and user_id = $user_id";
         mysqli_query($this->connection, $sql);
     }
     
@@ -83,6 +117,24 @@ public function boodschappenToevoegen($gerecht_id, $user_id) {
         $art = new artikel($this->connection);
         $artikel = $art->selecteerArtikel($artikel_id);
         return($artikel);
+    }
+
+    private function bepaalIngredientHoeveelheid($ingredient) {
+        if (!is_array($ingredient)) {
+            return 1;
+        }
+
+        $rawAmount = $ingredient['amount'] ?? ($ingredient['aantal'] ?? 1);
+
+        if (is_numeric($rawAmount)) {
+            $numericAmount = (float) $rawAmount;
+            if ($numericAmount <= 0) {
+                return 1;
+            }
+            return (int) max(1, ceil($numericAmount));
+        }
+
+        return 1;
     }
     //End private functions
 }

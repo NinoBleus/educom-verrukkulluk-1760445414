@@ -30,8 +30,77 @@ $boodschappenlijst = new boodschappenlijst($db->getConnection());
 
 /// Get info from URL
 $recipeId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+$requestedRecipeId = null;
+if (isset($_GET['recipe_id']) && $_GET['recipe_id'] !== '' && ctype_digit((string) $_GET['recipe_id'])) {
+    $requestedRecipeId = (int) $_GET['recipe_id'];
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['recipe_id']) && $_POST['recipe_id'] !== '' && ctype_digit((string) $_POST['recipe_id'])) {
+        $requestedRecipeId = (int) $_POST['recipe_id'];
+    }
+    if (isset($_POST['action'])) {
+        $action = $_POST['action'];
+    }
+}
+if ($recipeId === 0 && $requestedRecipeId !== null) {
+    $recipeId = $requestedRecipeId;
+}
 $action = isset($_GET['action']) ? $_GET['action'] : 'homepage';
+$action = isset($_POST['action']) ? $_POST['action'] : $action;
 $contextExtras = [];
+$currentSearchQuery = '';
+
+function prepareRecipesForView(array $recipes, recipe $gerecht) {
+    $prepared = [];
+
+    foreach ($recipes as $recipeRow) {
+        if (!is_array($recipeRow)) {
+            continue;
+        }
+
+        if (!isset($recipeRow['id']) && isset($recipeRow['recipe_id'])) {
+            $recipeRow['id'] = $recipeRow['recipe_id'];
+        }
+
+        $recipeId = $recipeRow['id'] ?? null;
+
+        $rating = null;
+        $price = null;
+        $calories = null;
+
+        if ($recipeId !== null) {
+            $calculatedRating = $gerecht->calcRating($recipeId);
+            $rating = is_numeric($calculatedRating) ? round($calculatedRating, 1) : null;
+
+            $calculatedPrice = $gerecht->calcPrice($recipeId);
+            $price = is_numeric($calculatedPrice) ? (float) $calculatedPrice : null;
+
+            $calculatedCalories = $gerecht->calcCalories($recipeId);
+            $calories = is_numeric($calculatedCalories) ? (int) round($calculatedCalories) : null;
+        }
+
+        $title = $recipeRow['title'] ?? ($recipeRow['titel'] ?? 'Onbekend recept');
+        $shortDescription = $recipeRow['short description'] ?? ($recipeRow['long description'] ?? ($recipeRow['korte_omschrijving'] ?? ($recipeRow['lange_omschrijving'] ?? '')));
+        $servingsRaw = $recipeRow['personen'] ?? ($recipeRow['aantal_personen'] ?? null);
+        $servingsCount = (is_numeric($servingsRaw) && (int) $servingsRaw > 0) ? (int) $servingsRaw : 4;
+        $caloriesPerServing = ($calories !== null && $servingsCount > 0)
+            ? (int) round($calories / $servingsCount)
+            : null;
+
+        $prepared[] = array_merge($recipeRow, [
+            'display_title' => $title,
+            'display_description' => $shortDescription,
+            'servings_total' => $servingsCount,
+            'rating' => $rating,
+            'price_total' => $price,
+            'calories_total' => $calories,
+            'calories_per_serving' => $caloriesPerServing
+        ]);
+    }
+
+    return $prepared;
+}
 
 switch($action) {
     
@@ -71,41 +140,7 @@ switch($action) {
             }
         }
 
-        $recipesForView = array_map(function($recipeRow) use ($gerecht) {
-            $recipeId = $recipeRow['id'] ?? null;
-            $rating = null;
-            $price = null;
-            $calories = null;
-
-            if ($recipeId !== null) {
-                $calculatedRating = $gerecht->calcRating($recipeId);
-                $rating = is_numeric($calculatedRating) ? round($calculatedRating, 1) : null;
-
-                $calculatedPrice = $gerecht->calcPrice($recipeId);
-                $price = is_numeric($calculatedPrice) ? (float) $calculatedPrice : null;
-
-                $calculatedCalories = $gerecht->calcCalories($recipeId);
-                $calories = is_numeric($calculatedCalories) ? (int) round($calculatedCalories) : null;
-            }
-
-            $title = $recipeRow['title'] ?? ($recipeRow['titel'] ?? 'Onbekend recept');
-            $shortDescription = $recipeRow['short description'] ?? ($recipeRow['long description'] ?? '');
-            $servingsRaw = $recipeRow['personen'] ?? ($recipeRow['aantal_personen'] ?? null);
-            $servingsCount = (is_numeric($servingsRaw) && (int) $servingsRaw > 0) ? (int) $servingsRaw : 4;
-            $caloriesPerServing = ($calories !== null && $servingsCount > 0)
-                ? (int) round($calories / $servingsCount)
-                : null;
-
-            return array_merge($recipeRow, [
-                'display_title' => $title,
-                'display_description' => $shortDescription,
-                'servings_total' => $servingsCount,
-                'rating' => $rating,
-                'price_total' => $price,
-                'calories_total' => $calories,
-                'calories_per_serving' => $caloriesPerServing
-            ]);
-        }, $currentRecipes);
+        $recipesForView = prepareRecipesForView($currentRecipes, $gerecht);
         $data = $currentRecipes;
 
         $template = 'homepage.html.twig';
@@ -121,6 +156,95 @@ switch($action) {
         break;
     }
     
+    case "search": {
+        $template = 'search.html.twig';
+        $title = "zoekresultaten";
+        $query = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+        $currentSearchQuery = $query;
+
+        $allRecipes = $gerecht->selectRecipe();
+        $matchedRecipes = [];
+
+        if (is_array($allRecipes) && $query !== '') {
+            foreach ($allRecipes as $recipeRow) {
+                if (!is_array($recipeRow)) {
+                    continue;
+                }
+
+                $candidateTitle = $recipeRow['title'] ?? ($recipeRow['titel'] ?? '');
+                if ($candidateTitle === '') {
+                    continue;
+                }
+
+                if (stripos($candidateTitle, $query) !== false) {
+                    if (!isset($recipeRow['id']) && isset($recipeRow['recipe_id'])) {
+                        $recipeRow['id'] = $recipeRow['recipe_id'];
+                    }
+                    $matchedRecipes[] = $recipeRow;
+                }
+            }
+        }
+
+        $recipesForView = prepareRecipesForView($matchedRecipes, $gerecht);
+        $data = $matchedRecipes;
+
+        $contextExtras = [
+            'recipes' => $recipesForView,
+            'query' => $query,
+            'hasQuery' => $query !== '',
+            'resultCount' => count($recipesForView),
+            'searchQuery' => $query
+        ];
+        break;
+    }
+
+    case "search_suggestions": {
+        $query = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+        $limitRaw = isset($_GET['limit']) ? $_GET['limit'] : null;
+        $limit = (is_numeric($limitRaw) && (int) $limitRaw > 0) ? (int) $limitRaw : 10;
+
+        $suggestions = [];
+        if ($query !== '') {
+            $allRecipes = $gerecht->selectRecipe();
+            if (is_array($allRecipes)) {
+                foreach ($allRecipes as $recipeRow) {
+                    if (!is_array($recipeRow)) {
+                        continue;
+                    }
+
+                    $candidateTitle = $recipeRow['title'] ?? ($recipeRow['titel'] ?? '');
+                    if ($candidateTitle === '') {
+                        continue;
+                    }
+
+                    if (stripos($candidateTitle, $query) === false) {
+                        continue;
+                    }
+
+                    $recipeIdSuggestion = $recipeRow['id'] ?? ($recipeRow['recipe_id'] ?? null);
+                    if ($recipeIdSuggestion === null) {
+                        continue;
+                    }
+
+                    $suggestions[] = [
+                        'id' => (int) $recipeIdSuggestion,
+                        'title' => $candidateTitle
+                    ];
+
+                    if (count($suggestions) >= $limit) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['suggestions' => $suggestions], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     case "detail": {
         $data = $gerecht->selectRecipe($recipeId);
         $template = 'detail.html.twig';
@@ -338,6 +462,140 @@ switch($action) {
         ];
         break;
     }
+
+    case "shoppinglist": {
+        $template = 'shoppinglist.html.twig';
+        $title = "boodschappenlijst";
+        $userId = 0;
+
+        $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
+        if ($isPost && isset($_POST['remove_article_id'])) {
+            $articleToRemove = (int) $_POST['remove_article_id'];
+            if ($articleToRemove > 0) {
+                $boodschappenlijst->verwijderArtikel($articleToRemove, $userId);
+                if (!headers_sent()) {
+                    $redirectUrl = '?action=shoppinglist&removed=' . $articleToRemove;
+                    header("Location: $redirectUrl");
+                    exit;
+                }
+            }
+        }
+
+        $recipeIdToAdd = null;
+        $addedRecipeName = null;
+        if ($isPost && isset($_POST['recipe_id']) && $_POST['recipe_id'] !== '') {
+            $rawRecipeId = $_POST['recipe_id'];
+            if (ctype_digit((string) $rawRecipeId)) {
+                $recipeIdToAdd = (int) $rawRecipeId;
+            }
+        } elseif (!$isPost && isset($_GET['recipe_id'])) {
+            $rawRecipeId = $_GET['recipe_id'];
+            if (ctype_digit((string) $rawRecipeId)) {
+                $recipeIdToAdd = (int) $rawRecipeId;
+            }
+        } elseif ($requestedRecipeId !== null) {
+            $recipeIdToAdd = $requestedRecipeId;
+        } elseif (isset($_GET['id']) && ctype_digit((string) $_GET['id'])) {
+            $recipeIdToAdd = (int) $_GET['id'];
+        }
+
+        if ($recipeIdToAdd !== null) {
+            $selectedRecipe = $gerecht->selectRecipe($recipeIdToAdd);
+            if (is_array($selectedRecipe)) {
+                $addedRecipeName = $selectedRecipe['title'] ?? ($selectedRecipe['titel'] ?? ($selectedRecipe['display_title'] ?? null));
+            }
+
+            $boodschappenlijst->boodschappenToevoegen($recipeIdToAdd, $userId);
+
+            if (!headers_sent()) {
+                $redirectParts = ['action=shoppinglist', 'added=' . $recipeIdToAdd];
+                if (!empty($addedRecipeName)) {
+                    $redirectParts[] = 'addedName=' . rawurlencode($addedRecipeName);
+                }
+                $targetUrl = '?' . implode('&', $redirectParts);
+                header("Location: $targetUrl");
+                exit;
+            }
+        }
+
+        $rawShoppingItems = $boodschappenlijst->selecteerBoodschappenLijst($userId);
+        $shoppingItems = [];
+        $grandTotalCents = 0;
+
+        if (is_array($rawShoppingItems)) {
+            foreach ($rawShoppingItems as $itemRow) {
+                if (!is_array($itemRow)) {
+                    continue;
+                }
+
+                $amountValue = isset($itemRow['amount']) ? (int) $itemRow['amount'] : 0;
+                if ($amountValue <= 0) {
+                    $amountValue = 1;
+                }
+
+                $articleName = $itemRow['naam'] ?? ($itemRow['name'] ?? ($itemRow['titel'] ?? 'Onbekend artikel'));
+                $articleDescription = $itemRow['omschrijving'] ?? ($itemRow['korte_omschrijving'] ?? ($itemRow['beschrijving'] ?? null));
+
+                $priceRaw = $itemRow['prijs'] ?? ($itemRow['price'] ?? null);
+                $unitPriceCents = 0;
+                if (is_numeric($priceRaw)) {
+                    $priceFloat = (float) $priceRaw;
+                    $unitPriceCents = (fmod($priceFloat, 1.0) === 0.0)
+                        ? (int) $priceFloat
+                        : (int) round($priceFloat * 100);
+                }
+
+                $lineTotalCents = $unitPriceCents * $amountValue;
+                $grandTotalCents += $lineTotalCents;
+
+                $articleImage = $itemRow['afbeelding'] ?? ($itemRow['image'] ?? ($itemRow['img'] ?? null));
+                if (!empty($articleImage)) {
+                    if (strpos($articleImage, 'http') === 0) {
+                        $resolvedArticleImage = $articleImage;
+                    } elseif (strpos($articleImage, 'assets/') === 0 || strpos($articleImage, 'uploads/') === 0) {
+                        $resolvedArticleImage = $articleImage;
+                    } else {
+                        $resolvedArticleImage = 'assets/img/' . ltrim($articleImage, '/');
+                    }
+                } else {
+                    $resolvedArticleImage = 'assets/img/logo-v2.png';
+                }
+
+                $packaging = $itemRow['verpakking'] ?? ($itemRow['verpakking_eenheid'] ?? ($itemRow['unit'] ?? null));
+
+                $shoppingItems[] = [
+                    'id' => $itemRow['id'] ?? null,
+                    'article_id' => $itemRow['article_id'] ?? null,
+                    'name' => $articleName,
+                    'description' => $articleDescription,
+                    'amount' => $amountValue,
+                    'image' => $resolvedArticleImage,
+                    'unit_price_cents' => $unitPriceCents,
+                    'unit_price_display' => number_format($unitPriceCents / 100, 2, ',', '.'),
+                    'line_total_cents' => $lineTotalCents,
+                    'line_total_display' => number_format($lineTotalCents / 100, 2, ',', '.'),
+                    'packaging' => $packaging
+                ];
+            }
+        }
+
+        $addedRecipeName = isset($_GET['addedName']) ? rawurldecode((string) $_GET['addedName']) : null;
+        $addedRecipeId = isset($_GET['added']) ? (int) $_GET['added'] : null;
+        $removedItemId = isset($_GET['removed']) ? (int) $_GET['removed'] : null;
+
+        $contextExtras = [
+            'shoppingItems' => $shoppingItems,
+            'shoppingCount' => count($shoppingItems),
+            'shoppingTotalCents' => $grandTotalCents,
+            'shoppingTotalDisplay' => number_format($grandTotalCents / 100, 2, ',', '.'),
+            'addedRecipeName' => $addedRecipeName,
+            'addedRecipeId' => $addedRecipeId,
+            'removedItemId' => $removedItemId,
+            'hasShoppingItems' => !empty($shoppingItems)
+        ];
+        $data = $shoppingItems;
+        break;
+    }
 }
 
 
@@ -345,5 +603,9 @@ switch($action) {
 $template = $twig->load($template);
 
 /// Render template
+$contextExtras = is_array($contextExtras) ? $contextExtras : [];
+if (!array_key_exists('searchQuery', $contextExtras)) {
+    $contextExtras['searchQuery'] = $currentSearchQuery;
+}
 $context = array_merge(["title" => $title, "data" => $data], $contextExtras);
 echo $template->render($context);
