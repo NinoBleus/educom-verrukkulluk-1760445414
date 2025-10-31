@@ -34,11 +34,24 @@
                         {% endif %}
                     </span>
                 </div>
-                <div class="recipe-detail-card__rating" aria-label="{{ recipeDetail.rating_value ? 'Beoordeling ' ~ recipeDetail.rating_value ~ ' van 5' : 'Nog geen beoordeling' }}">
-                    {% for star in 1..5 %}
-                        {% set filled = recipeDetail.rating_value is not null and recipeDetail.rating_value >= star %}
-                        <i class="fa fa-star recipe-card__star {{ filled ? 'recipe-card__star--filled' : 'recipe-card__star--empty' }}" aria-hidden="true"></i>
-                    {% endfor %}
+                {% set ratingValue = recipeDetail.rating_value %}
+                {% set ratingPercent = ratingValue is not null ? ((ratingValue / 5) * 100) : 0 %}
+                <div class="recipe-detail-card__rating" aria-label="{{ ratingValue ? 'Beoordeling ' ~ ratingValue ~ ' van 5' : 'Nog geen beoordeling' }}">
+                    <div class="recipe-detail-card__rating-stars rating-stars" aria-hidden="true">
+                        <div class="recipe-detail-card__rating-stars-base rating-stars__base">
+                            {% for star in 1..5 %}
+                                <i class="fa fa-star recipe-card__star" aria-hidden="true"></i>
+                            {% endfor %}
+                        </div>
+                        <div
+                            class="recipe-detail-card__rating-stars-fill rating-stars__fill"
+                            style="width: {{ ratingPercent ? ratingPercent|number_format(2, '.', '') : 0 }}%;"
+                        >
+                            {% for star in 1..5 %}
+                                <i class="fa fa-star recipe-card__star" aria-hidden="true"></i>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
             <h2 class="recipe-detail-card__title">{{ recipeDetail.display_title|default('Recept zonder titel') }}</h2>
@@ -76,8 +89,16 @@
                 <input type="hidden" name="recipe_id" value="{{ recipeDetail.id|e }}">
                 <button class="recipe-card__cta recipe-detail-card__cta" type="submit">Op lijst</button>
             </form>
-            <button class="recipe-detail-card__favorite js-recipe-favorite" type="button" aria-label="Like dit recept" aria-pressed="false">
-                <i class="far fa-heart recipe-detail-card__favorite-icon" aria-hidden="true"></i>
+            {% set isFavorite = recipeDetail.is_favorite|default(false) %}
+            <button
+                class="recipe-detail-card__favorite js-recipe-favorite {{ isFavorite ? 'is-active' : '' }}"
+                type="button"
+                aria-label="{{ isFavorite ? 'Verwijder recept uit favorieten' : 'Like dit recept' }}"
+                aria-pressed="{{ isFavorite ? 'true' : 'false' }}"
+                data-recipe-id="{{ recipeDetail.id|e }}"
+                data-favorite="{{ isFavorite ? '1' : '0' }}"
+            >
+                <i class="{{ isFavorite ? 'fas' : 'far' }} fa-heart recipe-detail-card__favorite-icon" aria-hidden="true"></i>
             </button>
         </footer>
     </div>
@@ -180,28 +201,63 @@
         var favoriteBtn = document.querySelector('.js-recipe-favorite');
         if (favoriteBtn) {
             var favoriteIcon = favoriteBtn.querySelector('.recipe-detail-card__favorite-icon');
+            var recipeId = favoriteBtn.getAttribute('data-recipe-id');
 
-            function updateFavoriteState(isActive) {
+            function setFavoriteUI(isActive) {
+                favoriteBtn.classList.toggle('is-active', isActive);
                 favoriteBtn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
                 favoriteBtn.setAttribute(
                     'aria-label',
                     isActive ? 'Verwijder recept uit favorieten' : 'Like dit recept'
                 );
-                if (!favoriteIcon) {
-                    return;
+                if (favoriteIcon) {
+                    favoriteIcon.classList.toggle('fas', isActive);
+                    favoriteIcon.classList.toggle('far', !isActive);
                 }
-                favoriteIcon.classList.toggle('fas', isActive);
-                favoriteIcon.classList.toggle('far', !isActive);
+                favoriteBtn.setAttribute('data-favorite', isActive ? '1' : '0');
             }
 
-            updateFavoriteState(
-                favoriteBtn.classList.contains('is-active') ||
-                favoriteBtn.getAttribute('aria-pressed') === 'true'
-            );
+            var initialFavorite = favoriteBtn.getAttribute('data-favorite') === '1';
+            setFavoriteUI(initialFavorite);
 
             favoriteBtn.addEventListener('click', function () {
-                var isActive = favoriteBtn.classList.toggle('is-active');
-                updateFavoriteState(isActive);
+                if (!recipeId || favoriteBtn.disabled) {
+                    return;
+                }
+
+                var previousFavorite = favoriteBtn.getAttribute('data-favorite') === '1';
+                var targetFavorite = !previousFavorite;
+
+                setFavoriteUI(targetFavorite);
+                favoriteBtn.disabled = true;
+
+                var formData = new FormData();
+                formData.append('recipe_id', recipeId);
+                formData.append('favorite', targetFavorite ? '1' : '0');
+
+                fetch('index.php?action=toggle_favorite', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Netwerkfout bij favoriet zetten');
+                        }
+                        return response.json();
+                    })
+                    .then(function (payload) {
+                        if (!payload || payload.success !== true) {
+                            throw new Error('Favoriet opslaan mislukt');
+                        }
+                        setFavoriteUI(!!payload.isFavorite);
+                    })
+                    .catch(function () {
+                        setFavoriteUI(previousFavorite);
+                    })
+                    .finally(function () {
+                        favoriteBtn.disabled = false;
+                    });
             });
         }
 
@@ -246,4 +302,3 @@
     });
     </script>
 {% endblock %}
-

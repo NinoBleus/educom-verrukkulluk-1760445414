@@ -53,24 +53,54 @@ class recipeinfo {
         }
         
         public function addFavoriteRecipe($user_id, $recipe_id){
-            
-            $sql = "insert into gerecht_info (user_id, gerecht_id, record_type) values ($user_id, $recipe_id, 'F')";
-            
+            $userId = (int) $user_id;
+            $recipeId = (int) $recipe_id;
+
+            $checkSql = "select id from gerecht_info where user_id = $userId and gerecht_id = $recipeId and record_type = 'F' limit 1";
+            $checkResult = mysqli_query($this->connection, $checkSql);
+            if ($checkResult instanceof mysqli_result) {
+                $exists = mysqli_fetch_assoc($checkResult);
+                mysqli_free_result($checkResult);
+                if ($exists) {
+                    return true;
+                }
+            }
+
+            $sql = "insert into gerecht_info (user_id, gerecht_id, record_type) values ($userId, $recipeId, 'F')";
             $result = mysqli_query($this->connection, $sql);
-            $recipeInfo = mysqli_fetch_array($result, MYSQLI_ASSOC);
-            
-            return $recipeInfo;
-            
+
+            return $result === true;
         }
         
         public function removeFavoriteRecipe($user_id, $recipe_id){
+            $userId = (int) $user_id;
+            $recipeId = (int) $recipe_id;
             
-            $sql = "delete from gerecht_info where user_id = $user_id and gerecht_id = $recipe_id and record_type = 'F'";
+            $sql = "delete from gerecht_info where user_id = $userId and gerecht_id = $recipeId and record_type = 'F'";
             
             $result = mysqli_query($this->connection, $sql);
             
-            return $result;
+            return $result === true;
             
+        }
+
+        public function selectFavoritesForUser($user_id){
+            $userId = (int) $user_id;
+
+            $sql = "select gerecht_id from gerecht_info where user_id = $userId and record_type = 'F' order by datum desc, id desc";
+            $result = mysqli_query($this->connection, $sql);
+
+            $favorites = [];
+            if ($result instanceof mysqli_result) {
+                while ($row = mysqli_fetch_assoc($result)) {
+                    if (isset($row['gerecht_id'])) {
+                        $favorites[] = (int) $row['gerecht_id'];
+                    }
+                }
+                mysqli_free_result($result);
+            }
+
+            return $favorites;
         }
     }
     

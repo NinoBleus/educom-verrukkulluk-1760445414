@@ -62,7 +62,7 @@ class boodschappenlijst {
         $artikelId = (int) $artikelId;
         $user_id = (int) $user_id;
 
-        if ($artikelId <= 0) {
+        if ($artikelId < 0) {
             return false;
         }
 

@@ -1,10 +1,15 @@
-{# Opnemen van de "Main" file #}
 {% extends "main.html.twig" %}
 
-
 {% block content %}
-<div class="recipes-section">
-    {% if recipes is defined and recipes|length > 0 %}
+<div class="favorites-section recipes-section">
+    <h1 class="search-results__title">Mijn favorieten</h1>
+
+    {% if hasFavorites %}
+        {% set resultLabel = favoritesCount == 1 ? 'favoriet recept' : 'favoriete recepten' %}
+        <p class="search-results__intro">
+            Je hebt {{ favoritesCount }} {{ resultLabel }} opgeslagen.
+        </p>
+
         <div class="recipes-grid">
             {% for recipe in recipes %}
                 {% set imageFile = recipe.image ?? '' %}
@@ -12,9 +17,7 @@
                 {% if resolvedImage is empty %}
                     {% set resolvedImage = 'assets/img/logo-v2.png' %}
                 {% elseif resolvedImage starts with 'http' %}
-                    {# absolute path provided #}
                 {% elseif resolvedImage starts with 'assets/' %}
-                    {# already relative to assets #}
                 {% else %}
                     {% set resolvedImage = 'assets/img/' ~ resolvedImage %}
                 {% endif %}
@@ -88,40 +91,9 @@
             {% endfor %}
         </div>
     {% else %}
-        <p class="recipes-empty">
-            Er zijn nog geen recepten beschikbaar.
+        <p class="search-results__intro">
+            Je hebt nog geen favoriete recepten. Klik op het hartje bij een recept om het toe te voegen.
         </p>
-    {% endif %}
-
-    {% if hasPagination %}
-        <nav class="recipes-pagination" aria-label="Paginering recepten">
-            <ul class="recipes-pagination__list">
-                <li class="recipes-pagination__item">
-                    {% if currentPage > 1 %}
-                        <a class="recipes-pagination__link" href="?action=homepage&page={{ currentPage - 1 }}" rel="prev">Vorige</a>
-                    {% else %}
-                        <span class="recipes-pagination__link is-disabled" aria-disabled="true">Vorige</span>
-                    {% endif %}
-                </li>
-                {% for page in 1..totalPages %}
-                    <li class="recipes-pagination__item">
-                        {% if page == currentPage %}
-                            <span class="recipes-pagination__link is-active" aria-current="page">{{ page }}</span>
-                        {% else %}
-                            <a class="recipes-pagination__link" href="?action=homepage&page={{ page }}">{{ page }}</a>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-                <li class="recipes-pagination__item">
-                    {% if currentPage < totalPages %}
-                        <a class="recipes-pagination__link" href="?action=homepage&page={{ currentPage + 1 }}" rel="next">Volgende</a>
-                    {% else %}
-                        <span class="recipes-pagination__link is-disabled" aria-disabled="true">Volgende</span>
-                    {% endif %}
-                </li>
-            </ul>
-        </nav>
     {% endif %}
 </div>
 {% endblock %}
-

@@ -203,7 +203,8 @@ html, body {
 }
 
 .search-suggestions__item:hover,
-.search-suggestions__item:focus {
+.search-suggestions__item:focus,
+.search-suggestions__item.is-active {
     background: rgba(238, 83, 80, 0.12);
     color: var(--lighter-red);
     outline: none;
@@ -473,13 +474,52 @@ html, body {
     line-height: 1;
 }
 
-.recipe-card__star--filled {
-    color: #f7b733;
+.recipe-detail-card__rating-stars,
+.rating-stars {
+    position: relative;
+    display: inline-block;
+    line-height: 1;
 }
 
-.recipe-card__star--empty {
+.recipe-detail-card__rating-stars-base,
+.recipe-detail-card__rating-stars-fill,
+.rating-stars__base,
+.rating-stars__fill {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.recipe-detail-card__rating-stars-base,
+.rating-stars__base {
     color: #d0d0d0;
-    opacity: 0.55;
+}
+
+.recipe-detail-card__rating-stars-fill,
+.rating-stars__fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    color: #f7b733;
+    pointer-events: none;
+}
+
+.recipe-detail-card__rating-stars-base .fa-star,
+.recipe-detail-card__rating-stars-fill .fa-star,
+.rating-stars__base .fa-star,
+.rating-stars__fill .fa-star {
+    flex-shrink: 0;
+}
+
+.recipe-detail-card__rating-stars-base .recipe-card__star,
+.rating-stars__base .recipe-card__star {
+    color: #d0d0d0;
+}
+
+.recipe-detail-card__rating-stars-fill .recipe-card__star,
+.rating-stars__fill .recipe-card__star {
+    color: #f7b733;
 }
 
 .recipe-card__description {

@@ -28,6 +28,8 @@ $kitchentype = new kitchentype($db->getConnection());
 $gerecht = new recipe($db->getConnection());
 $boodschappenlijst = new boodschappenlijst($db->getConnection());
 
+$defaultUserId = 0;
+
 /// Get info from URL
 $recipeId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
@@ -51,7 +53,7 @@ $action = isset($_POST['action']) ? $_POST['action'] : $action;
 $contextExtras = [];
 $currentSearchQuery = '';
 
-function prepareRecipesForView(array $recipes, recipe $gerecht) {
+function prepareRecipesForView(array $recipes, recipe $gerecht, $userId = null) {
     $prepared = [];
 
     foreach ($recipes as $recipeRow) {
@@ -68,6 +70,7 @@ function prepareRecipesForView(array $recipes, recipe $gerecht) {
         $rating = null;
         $price = null;
         $calories = null;
+        $isFavorite = null;
 
         if ($recipeId !== null) {
             $calculatedRating = $gerecht->calcRating($recipeId);
@@ -78,6 +81,10 @@ function prepareRecipesForView(array $recipes, recipe $gerecht) {
 
             $calculatedCalories = $gerecht->calcCalories($recipeId);
             $calories = is_numeric($calculatedCalories) ? (int) round($calculatedCalories) : null;
+
+            if ($userId !== null) {
+                $isFavorite = $gerecht->determineFavorite($recipeId, (int) $userId);
+            }
         }
 
         $title = $recipeRow['title'] ?? ($recipeRow['titel'] ?? 'Onbekend recept');
@@ -88,6 +95,11 @@ function prepareRecipesForView(array $recipes, recipe $gerecht) {
             ? (int) round($calories / $servingsCount)
             : null;
 
+        $favoriteFlag = null;
+        if ($isFavorite !== null) {
+            $favoriteFlag = (bool) $isFavorite;
+        }
+
         $prepared[] = array_merge($recipeRow, [
             'display_title' => $title,
             'display_description' => $shortDescription,
@@ -95,7 +107,8 @@ function prepareRecipesForView(array $recipes, recipe $gerecht) {
             'rating' => $rating,
             'price_total' => $price,
             'calories_total' => $calories,
-            'calories_per_serving' => $caloriesPerServing
+            'calories_per_serving' => $caloriesPerServing,
+            'is_favorite' => $favoriteFlag
         ]);
     }
 
@@ -140,7 +153,7 @@ switch($action) {
             }
         }
 
-        $recipesForView = prepareRecipesForView($currentRecipes, $gerecht);
+        $recipesForView = prepareRecipesForView($currentRecipes, $gerecht, $defaultUserId);
         $data = $currentRecipes;
 
         $template = 'homepage.html.twig';
@@ -165,27 +178,31 @@ switch($action) {
         $allRecipes = $gerecht->selectRecipe();
         $matchedRecipes = [];
 
-        if (is_array($allRecipes) && $query !== '') {
-            foreach ($allRecipes as $recipeRow) {
-                if (!is_array($recipeRow)) {
-                    continue;
-                }
-
-                $candidateTitle = $recipeRow['title'] ?? ($recipeRow['titel'] ?? '');
-                if ($candidateTitle === '') {
-                    continue;
-                }
-
-                if (stripos($candidateTitle, $query) !== false) {
-                    if (!isset($recipeRow['id']) && isset($recipeRow['recipe_id'])) {
-                        $recipeRow['id'] = $recipeRow['recipe_id'];
+        if (is_array($allRecipes)) {
+            if ($query === '') {
+                $matchedRecipes = $allRecipes;
+            } else {
+                foreach ($allRecipes as $recipeRow) {
+                    if (!is_array($recipeRow)) {
+                        continue;
                     }
-                    $matchedRecipes[] = $recipeRow;
+
+                    $candidateTitle = $recipeRow['title'] ?? ($recipeRow['titel'] ?? '');
+                    if ($candidateTitle === '') {
+                        continue;
+                    }
+
+                    if (stripos($candidateTitle, $query) !== false) {
+                        if (!isset($recipeRow['id']) && isset($recipeRow['recipe_id'])) {
+                            $recipeRow['id'] = $recipeRow['recipe_id'];
+                        }
+                        $matchedRecipes[] = $recipeRow;
+                    }
                 }
             }
         }
 
-        $recipesForView = prepareRecipesForView($matchedRecipes, $gerecht);
+        $recipesForView = prepareRecipesForView($matchedRecipes, $gerecht, $defaultUserId);
         $data = $matchedRecipes;
 
         $contextExtras = [
@@ -193,7 +210,8 @@ switch($action) {
             'query' => $query,
             'hasQuery' => $query !== '',
             'resultCount' => count($recipesForView),
-            'searchQuery' => $query
+            'searchQuery' => $query,
+            'isShowingAllRecipes' => $query === ''
         ];
         break;
     }
@@ -245,6 +263,118 @@ switch($action) {
         exit;
     }
 
+    case "favorites": {
+        $template = 'favorites.html.twig';
+        $title = "mijn favorieten";
+        $userId = $defaultUserId;
+
+        $favoriteRecipeIds = $recipeInfo->selectFavoritesForUser($userId);
+        $favoriteRecipes = [];
+
+        if (is_array($favoriteRecipeIds)) {
+            foreach ($favoriteRecipeIds as $favoriteRecipeId) {
+                if (!is_numeric($favoriteRecipeId)) {
+                    continue;
+                }
+                $favoriteRecipeId = (int) $favoriteRecipeId;
+                if ($favoriteRecipeId < 0) {
+                    continue;
+                }
+
+                $recipeData = $gerecht->selectRecipe($favoriteRecipeId);
+                if (is_array($recipeData)) {
+                    $recipeData['id'] = $favoriteRecipeId;
+                    $favoriteRecipes[] = $recipeData;
+                }
+            }
+        }
+
+        $recipesForView = prepareRecipesForView($favoriteRecipes, $gerecht, $userId);
+        $data = $favoriteRecipes;
+
+        $contextExtras = [
+            'recipes' => $recipesForView,
+            'favoritesCount' => count($recipesForView),
+            'hasFavorites' => !empty($recipesForView)
+        ];
+        break;
+    }
+
+    case "toggle_favorite": {
+        $userId = $defaultUserId;
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(405);
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Alleen POST aanvragen zijn toegestaan.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $rawRecipeId = $_POST['recipe_id'] ?? null;
+        $favoriteParam = $_POST['favorite'] ?? null;
+
+        if ($rawRecipeId === null || !ctype_digit((string) $rawRecipeId)) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Ongeldig recept opgegeven.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $recipeIdToToggle = (int) $rawRecipeId;
+        if ($recipeIdToToggle < 0) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(400);
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Recept-ID moet positief zijn.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $shouldFavorite = in_array(strtolower((string) $favoriteParam), ['1', 'true', 'yes', 'on'], true);
+
+        $existingRecipe = $gerecht->selectRecipe($recipeIdToToggle);
+        if (!is_array($existingRecipe) || empty($existingRecipe)) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Recept niet gevonden.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $dbResult = $shouldFavorite
+            ? $recipeInfo->addFavoriteRecipe($userId, $recipeIdToToggle)
+            : $recipeInfo->removeFavoriteRecipe($userId, $recipeIdToToggle);
+
+        $isFavorite = $gerecht->determineFavorite($recipeIdToToggle, $userId);
+
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+
+        echo json_encode([
+            'success' => (bool) $dbResult,
+            'isFavorite' => (bool) $isFavorite
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     case "detail": {
         $data = $gerecht->selectRecipe($recipeId);
         $template = 'detail.html.twig';
@@ -267,6 +397,8 @@ switch($action) {
 
             $calculatedCalories = $gerecht->calcCalories($actualRecipeId);
             $caloriesValue = is_numeric($calculatedCalories) ? (int) round($calculatedCalories) : null;
+
+            $isFavorite = $gerecht->determineFavorite($actualRecipeId, $defaultUserId);
 
             $imageFile = $data['image'] ?? '';
             $resolvedImage = $imageFile;
@@ -313,7 +445,8 @@ switch($action) {
                 'calories_per_serving' => $caloriesPerServing,
                 'servings_total' => $servingsCount,
                 'kitchen_label' => $kitchenLabel,
-                'type_label' => $typeLabel
+                'type_label' => $typeLabel,
+                'is_favorite' => (bool) $isFavorite
             ]);
             $data = $recipeDetail;
         }
@@ -471,7 +604,7 @@ switch($action) {
         $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
         if ($isPost && isset($_POST['remove_article_id'])) {
             $articleToRemove = (int) $_POST['remove_article_id'];
-            if ($articleToRemove > 0) {
+            if ($articleToRemove >= 0) {
                 $boodschappenlijst->verwijderArtikel($articleToRemove, $userId);
                 if (!headers_sent()) {
                     $redirectUrl = '?action=shoppinglist&removed=' . $articleToRemove;
@@ -607,5 +740,6 @@ $contextExtras = is_array($contextExtras) ? $contextExtras : [];
 if (!array_key_exists('searchQuery', $contextExtras)) {
     $contextExtras['searchQuery'] = $currentSearchQuery;
 }
+$contextExtras['favoriteUserId'] = $contextExtras['favoriteUserId'] ?? $defaultUserId;
 $context = array_merge(["title" => $title, "data" => $data], $contextExtras);
 echo $template->render($context);

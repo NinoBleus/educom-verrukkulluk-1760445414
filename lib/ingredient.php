@@ -12,18 +12,20 @@ class ingredient {
     
     public function selecteerIngredientsFromRecipe($recipe_id) {
         
+        $recipe_id = (int) $recipe_id;
         $sql = "select * from ingredient where gerecht_id = $recipe_id";
         
         $result = mysqli_query($this->connection, $sql);
         
         $ingredients = [];
         while ($row = mysqli_fetch_assoc($result)) {
-            $article =  $this->selecteerIngredientArticle($row['artikel_id']);
+            $artikelId = isset($row['artikel_id']) ? (int) $row['artikel_id'] : null;
+            $article = $artikelId !== null ? $this->selecteerIngredientArticle($artikelId) : [];
             $ingredients[] = array_merge(
                 [
                     'id' => $row['id'],
                     'gerecht_id' => $row['gerecht_id'],
-                    'artikel_id' => $row['artikel_id'],
+                    'artikel_id' => $artikelId,
                     'amount' => $row['aantal']
                 ],
                 $article);
